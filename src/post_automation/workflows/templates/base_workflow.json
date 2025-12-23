@@ -1,0 +1,160 @@
+{
+  "name": "Post Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "process-presentation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "post-automation-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.API_BASE_URL}}/api/detect/pptx",
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "detect-ai-content",
+      "name": "Detect AI Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.ai_slides}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-ai-detected",
+      "name": "Check AI Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.API_BASE_URL}}/api/modify/pptx",
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "replace_ai_content",
+                "value": "true"
+              },
+              {
+                "name": "confidence_threshold",
+                "value": "0.7"
+              }
+            ]
+          }
+        }
+      },
+      "id": "modify-presentation",
+      "name": "Modify Presentation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"success\", \"message\": \"Presentation modified\", \"ai_slides\": {{$json.ai_slides}}, \"total_slides\": {{$json.total_slides}}}"
+      },
+      "id": "respond-modified",
+      "name": "Respond Modified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"no_action\", \"message\": \"No AI content detected\", \"total_slides\": {{$json.total_slides}}}"
+      },
+      "id": "respond-no-action",
+      "name": "Respond No Action",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Detect AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect AI Content": {
+      "main": [
+        [
+          {
+            "node": "Check AI Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check AI Detected": {
+      "main": [
+        [
+          {
+            "node": "Modify Presentation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modify Presentation": {
+      "main": [
+        [
+          {
+            "node": "Respond Modified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "id": "post-automation-workflow",
+  "meta": {
+    "instanceId": "local"
+  },
+  "tags": []
+}
